@@ -1,76 +1,142 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Image from "next/image"
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react"
-import { toast } from "sonner"
-import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import StudentLoginImage from "@/assets/images/auth/std_login.png"
+import { Loader2, Eye, EyeOff, AlertCircle } from "lucide-react"
+import { toast } from "sonner"
+import Image from "next/image"
 
+import LoginImage from "@/assets/images/auth/loginImage.png"
 
 export default function AuthLayout() {
+  const router = useRouter()
+
+  // Form states - maintaining existing structure
   const [isSignUp, setIsSignUp] = useState(false)
   const [userType, setUserType] = useState("student")
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [showUserTypeSelection, setShowUserTypeSelection] = useState(false)
-  const [pendingAuth, setPendingAuth] = useState(null)
+
+  // Form data - updated to match API requirements
   const [formData, setFormData] = useState({
     email: "",
+    username: "",
+    first_name: "",
+    last_name: "",
     password: "",
-    confirmPassword: "",
-    fullName: "",
-    phoneNumber: "",
-    userType: "student",
+    password_confirm: "",
+    role: "student",
   })
+
+  // Form validation errors
   const [errors, setErrors] = useState({})
 
-  const router = useRouter()
-  const host = process.env.NEXT_PUBLIC_API_URL
+  // API base URL
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
   const validateForm = () => {
+    console.log("🔍 AuthLayout: Starting form validation...")
+    console.log("📝 AuthLayout: Form data to validate:", {
+      ...formData,
+      password: "[HIDDEN]",
+      password_confirm: "[HIDDEN]",
+    })
+
     const newErrors = {}
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
+    if (!formData.email) {
+      newErrors.email = "Email is required"
+      console.log("❌ AuthLayout: Email validation failed - empty")
+    } else if (!emailRegex.test(formData.email)) {
       newErrors.email = "Please enter a valid email address"
+      console.log("❌ AuthLayout: Email validation failed - invalid format:", formData.email)
+    } else {
+      console.log("✅ AuthLayout: Email validation passed")
+    }
+
+    // Username validation (for sign up)
+    if (isSignUp) {
+      if (!formData.username) {
+        newErrors.username = "Username is required"
+        console.log("❌ AuthLayout: Username validation failed - empty")
+      } else if (formData.username.length < 3) {
+        newErrors.username = "Username must be at least 3 characters"
+        console.log("❌ AuthLayout: Username validation failed - too short:", formData.username.length)
+      } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+        newErrors.username = "Username can only contain letters, numbers, and underscores"
+        console.log("❌ AuthLayout: Username validation failed - invalid characters")
+      } else {
+        console.log("✅ AuthLayout: Username validation passed")
+      }
+
+      // First name validation
+      if (!formData.first_name) {
+        newErrors.first_name = "First name is required"
+        console.log("❌ AuthLayout: First name validation failed - empty")
+      } else if (formData.first_name.trim().length < 2) {
+        newErrors.first_name = "First name must be at least 2 characters"
+        console.log("❌ AuthLayout: First name validation failed - too short")
+      } else {
+        console.log("✅ AuthLayout: First name validation passed")
+      }
+
+      // Last name validation
+      if (!formData.last_name) {
+        newErrors.last_name = "Last name is required"
+      } else if (formData.last_name.trim().length < 2) {
+        newErrors.last_name = "Last name must be at least 2 characters"
+      }
     }
 
     // Password validation
-    if (formData.password.length < 6) {
+    if (!formData.password) {
+      newErrors.password = "Password is required"
+    } else if (formData.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters"
     }
 
     // Confirm password validation (only for sign up)
-    if (isSignUp && formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match"
-    }
-
-    // Full name validation (only for sign up)
-    if (isSignUp && formData.fullName.trim().length < 2) {
-      newErrors.fullName = "Full name must be at least 2 characters"
-    }
-
-    // Phone number validation (only for sign up)
     if (isSignUp) {
-      const phoneRegex = /^\+?[\d\s-()]{10,}$/
-      if (!phoneRegex.test(formData.phoneNumber)) {
-        newErrors.phoneNumber = "Please enter a valid phone number"
+      if (!formData.password_confirm) {
+        newErrors.password_confirm = "Please confirm your password"
+        console.log("❌ AuthLayout: Password confirmation validation failed - empty")
+      } else if (formData.password !== formData.password_confirm) {
+        newErrors.password_confirm = "Passwords do not match"
+        console.log("❌ AuthLayout: Password confirmation validation failed - mismatch")
+      } else {
+        console.log("✅ AuthLayout: Password confirmation validation passed")
       }
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    const isValid = Object.keys(newErrors).length === 0
+    console.log(`${isValid ? "✅" : "❌"} AuthLayout: Form validation ${isValid ? "passed" : "failed"}`)
+
+    if (!isValid) {
+      console.log("📋 AuthLayout: Validation errors:", newErrors)
+    }
+
+    return isValid
   }
 
+  /**
+   * Enhanced input change handler with logging
+   */
   const handleInputChange = (field, value) => {
+    console.log(
+      `📝 AuthLayout: Input changed - ${field}:`,
+      field === "password" || field === "password_confirm" ? "[HIDDEN]" : value,
+    )
+
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -78,6 +144,7 @@ export default function AuthLayout() {
 
     // Clear error when user starts typing
     if (errors[field]) {
+      console.log(`🧹 AuthLayout: Clearing error for field: ${field}`)
       setErrors((prev) => ({
         ...prev,
         [field]: "",
@@ -85,257 +152,181 @@ export default function AuthLayout() {
     }
   }
 
-  const getUserTypeFromResponse = (data) => {
-    // Try multiple possible locations for user type in the response
-    const possiblePaths = [
-      data.user?.user_type,
-      data.user?.userType,
-      data.user?.type,
-      data.user?.role,
-      data.userType,
-      data.user_type,
-      data.type,
-      data.role,
-    ]
-
-    for (const path of possiblePaths) {
-      if (path && (path === "student" || path === "tutor")) {
-        return path
-      }
-    }
-
-    return null
-  }
-
-  const redirectToDefaultDashboard = (selectedUserType = "student") => {
-    console.log(`Redirecting to default dashboard for ${selectedUserType}`)
-
-    if (selectedUserType === "tutor") {
-      router.push("/tutor/dashboard")
-    } else {
-      router.push("/dashboard")
-    }
-  }
-
-  const handleUserTypeSelection = async (selectedType) => {
-    if (!pendingAuth) return
-
-    try {
-      setLoading(true)
-
-      // Store the selected user type in localStorage for future reference
-      const updatedUser = {
-        ...pendingAuth.user,
-        user_type: selectedType,
-        userType: selectedType,
-      }
-
-      localStorage.setItem("user", JSON.stringify(updatedUser))
-
-      // Optionally, send the user type to the backend to update the profile
-      try {
-        await fetch(`${host}api/auth/update-user-type/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${pendingAuth.tokens.access}`,
-          },
-          body: JSON.stringify({
-            user_type: selectedType,
-          }),
-        })
-      } catch (updateError) {
-        console.warn("Failed to update user type on backend:", updateError)
-        // Continue with local storage approach
-      }
-
-      toast.success(`Welcome! You've been set up as a ${selectedType}.`)
-      redirectToDefaultDashboard(selectedType)
-
-      // Reset states
-      setShowUserTypeSelection(false)
-      setPendingAuth(null)
-    } catch (error) {
-      console.error("Error handling user type selection:", error)
-      toast.error("Failed to complete setup. Please try again.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  /**
+   * Enhanced form submission handler with comprehensive logging
+   */
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log("🚀 AuthLayout: Form submission started")
+    console.log("📋 AuthLayout: Submission type:", isSignUp ? "SIGN_UP" : "SIGN_IN")
+    console.log("👤 AuthLayout: User type:", userType)
 
     if (!validateForm()) {
+      console.log("❌ AuthLayout: Form validation failed, aborting submission")
       toast.error("Please fix the errors before submitting")
       return
     }
 
     setLoading(true)
+    console.log("⏳ AuthLayout: Setting loading state to true")
 
     try {
-      console.log("Attempting authentication with host:", host)
-      const endpoint = isSignUp ? `${host}api/auth/register/` : `${host}api/auth/login/`
+      console.log("🌐 AuthLayout: API host:", API_BASE)
+      const endpoint = isSignUp ? `${API_BASE}/api/auth/register/` : `${API_BASE}/api/auth/login/`
+      console.log("📡 AuthLayout: API endpoint:", endpoint)
 
+      // Prepare request body with user type included
       const requestBody = {
         ...formData,
-        user_type: userType,
+        role: userType, // Ensure user type is included in the request
       }
 
-      console.log("Request body:", requestBody)
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      const data = await response.json()
-      console.log("Response data:", data)
-
-      if (response.ok) {
-        // Store tokens immediately
-        if (data.tokens?.access && data.tokens?.refresh) {
-          localStorage.setItem("access", data.tokens.access)
-          localStorage.setItem("refresh", data.tokens.refresh)
-        } else {
-          console.warn("No tokens received in response")
+      // For login, we only need email and password
+      if (!isSignUp) {
+        const loginBody = {
+          email: formData.email,
+          password: formData.password,
         }
 
-        // Try to determine user type from response
-        const responseUserType = getUserTypeFromResponse(data)
-        console.log("Detected user type from response:", responseUserType)
+        console.log("📡 AuthLayout: Sending login request...")
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(loginBody),
+        })
 
-        if (responseUserType) {
-          // User type is available - proceed with normal flow
-          const userData = {
-            ...data.user,
-            user_type: responseUserType,
-            userType: responseUserType,
-          }
+        console.log("📥 AuthLayout: Login response status:", response.status)
+        const data = await response.json()
+        console.log("📄 AuthLayout: Login response data:", data)
 
-          localStorage.setItem("user", JSON.stringify(userData))
-
-          toast.success(isSignUp ? "Account created successfully!" : "Welcome back!")
-
-          console.log(`Redirecting to ${responseUserType} dashboard`)
-          redirectToDefaultDashboard(responseUserType)
+        if (response.ok && data.success) {
+          console.log("✅ AuthLayout: Login successful")
+          handleSuccessfulAuth(data, false)
         } else {
-          // User type is not available - show selection interface
-          console.log("User type not found in response, showing selection interface")
-
-          setPendingAuth({
-            user: data.user || {},
-            tokens: data.tokens || {},
-          })
-
-          setShowUserTypeSelection(true)
-          toast.info("Please select your account type to continue")
+          console.error("❌ AuthLayout: Login failed:", data)
+          handleAuthError(data)
         }
       } else {
-        console.error("Authentication failed:", data)
+        console.log("📡 AuthLayout: Sending sign up request...")
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        })
 
-        // Handle specific error messages
-        const errorMessage =
-          data.message ||
-          data.error ||
-          data.detail ||
-          (data.non_field_errors && data.non_field_errors[0]) ||
-          "Authentication failed"
+        console.log("📥 AuthLayout: Sign up response status:", response.status)
+        const data = await response.json()
+        console.log("📄 AuthLayout: Sign up response data:", data)
 
-        toast.error(errorMessage)
+        if (response.ok && data.success) {
+          console.log("✅ AuthLayout: Sign up successful")
+          handleSuccessfulAuth(data, true)
+        } else {
+          console.error("❌ AuthLayout: Sign up failed:", data)
+          handleAuthError(data)
+        }
       }
     } catch (error) {
-      console.error("Auth error:", error)
+      console.error("❌ AuthLayout: Network/fetch error:", error)
 
       if (error.name === "TypeError" && error.message.includes("fetch")) {
+        console.error("🌐 AuthLayout: Network connectivity issue")
         toast.error("Unable to connect to server. Please check your internet connection.")
       } else {
+        console.error("🔥 AuthLayout: Unexpected error during authentication")
         toast.error("Something went wrong. Please try again.")
       }
     } finally {
       setLoading(false)
+      console.log("🏁 AuthLayout: Form submission completed, loading state reset")
     }
   }
 
+  /**
+   * Helper function to handle successful authentication
+   */
+  const handleSuccessfulAuth = (data, isRegistration) => {
+    console.log("🎉 AuthLayout: Processing successful authentication")
+
+    if (isRegistration) {
+      // For registration, redirect to verify email page
+      toast.success("Registration successful! Please check your email for verification.")
+      router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`)
+      return
+    }
+
+    // For login, store tokens and user data
+    if (data?.data?.access_token && data?.data?.refresh_token) {
+      console.log("💾 AuthLayout: Storing authentication tokens")
+      localStorage.setItem("access_token", data.data.access_token)
+      localStorage.setItem("refresh_token", data.data.refresh_token)
+    } else {
+      console.warn("⚠️ AuthLayout: No tokens received in response")
+    }
+
+    // Store user data
+    const userData = data.data.user
+    console.log("💾 AuthLayout: Storing user data:", userData)
+    localStorage.setItem("user_data", JSON.stringify(userData))
+
+    toast.success("Welcome back!")
+
+    // Redirect based on user role
+    // const redirectPath = userData.role === "teacher" ? "/tutor/dashboard" : "/student/dashboard"
+    const redirectPath = "/profile"
+    console.log("🚀 AuthLayout: Redirecting to:", redirectPath)
+    router.push(redirectPath)
+  }
+
+  /**
+   * Helper function to handle authentication errors
+   */
+  const handleAuthError = (data) => {
+    console.log("🔍 AuthLayout: Processing authentication error")
+
+    // Handle specific error messages
+    const errorMessage =
+      data.message ||
+      data.error ||
+      data.detail ||
+      (data.non_field_errors && data.non_field_errors[0]) ||
+      "Authentication failed"
+
+    console.log("📢 AuthLayout: Error message to display:", errorMessage)
+
+    // Handle field-specific errors
+    if (data.errors || data.field_errors) {
+      const fieldErrors = data.errors || data.field_errors
+      console.log("📋 AuthLayout: Field-specific errors:", fieldErrors)
+      setErrors(fieldErrors)
+    }
+
+    // Check for email verification error
+    if (errorMessage.toLowerCase().includes("verify") || errorMessage.toLowerCase().includes("verification")) {
+      toast.error("Email not verified", {
+        description: "Please check your email and verify your account before logging in.",
+      })
+    } else {
+      toast.error(errorMessage)
+    }
+  }
+
+  /**
+   * Enhanced user type change handler
+   */
   const handleUserTypeChange = (newUserType) => {
+    console.log("🔄 AuthLayout: User type changed from", userType, "to", newUserType)
     setUserType(newUserType)
     setFormData((prev) => ({
       ...prev,
-      userType: newUserType,
+      role: newUserType,
     }))
   }
 
-  const handleCancelUserTypeSelection = () => {
-    setShowUserTypeSelection(false)
-    setPendingAuth(null)
-    toast.info("Authentication cancelled. Please try again.")
-  }
-
-  // Show user type selection interface
-  if (showUserTypeSelection) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardContent className="p-8">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="h-8 w-8 text-blue-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Select Account Type</h2>
-              <p className="text-gray-600">
-                We couldn't determine your account type. Please select how you'd like to use Pen Tutor.
-              </p>
-            </div>
-
-            <Alert className="mb-6">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Your account has been created successfully. Please choose your role to access the appropriate dashboard.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-4">
-              <Button
-                onClick={() => handleUserTypeSelection("student")}
-                disabled={loading}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white py-3"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Continue as Student
-              </Button>
-
-              <Button
-                onClick={() => handleUserTypeSelection("tutor")}
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Continue as Tutor
-              </Button>
-
-              <Button
-                onClick={handleCancelUserTypeSelection}
-                disabled={loading}
-                variant="outline"
-                className="w-full bg-transparent"
-              >
-                Cancel
-              </Button>
-            </div>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-500">You can change this later in your profile settings.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // Main authentication form
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-4xl shadow-xl">
@@ -346,11 +337,7 @@ export default function AuthLayout() {
               {/* Logo */}
               <div className="flex items-center justify-center mb-8">
                 <div className="flex items-center space-x-2">
-                  {/* <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">PT</span>
-                  </div>
-                  <span className="text-xl font-bold text-gray-800">PEN TUTOR</span> */}
-                  <Image src="/logo.png" alt="PEN TUTOR" className="w-36" width={100} height={100} />
+                  <Image src="/logo.png" alt="Pen Tutor Logo" className="w-36" width={144} height={40} />
                 </div>
               </div>
 
@@ -361,48 +348,77 @@ export default function AuthLayout() {
                 <p className="text-gray-600">{isSignUp ? "Join our learning community" : "Sign in to your account"}</p>
               </div>
 
-              {/* User Type Selection */}
-              <Tabs value={userType} onValueChange={handleUserTypeChange} className="w-full mb-6">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger
-                    value="student"
-                    className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white"
-                  >
-                    Student
-                  </TabsTrigger>
-                  <TabsTrigger value="tutor" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-                    Tutor
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {/* User Type Selection - Only show during signup */}
+              {isSignUp && (
+                <Tabs value={userType} onValueChange={handleUserTypeChange} className="w-full mb-6">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger
+                      value="student"
+                      className="data-[state=active]:bg-secondary data-[state=active]:text-white"
+                    >
+                      Student
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="teacher"
+                      className="data-[state=active]:bg-primary data-[state=active]:text-white"
+                    >
+                      Teacher
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+
+              {/* Error Display */}
+              {errors.general && (
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{errors.general}</AlertDescription>
+                </Alert>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Sign Up Fields */}
                 {isSignUp && (
                   <>
                     <div>
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="username">Username</Label>
                       <Input
-                        id="fullName"
-                        placeholder="Enter your full name"
-                        value={formData.fullName}
-                        onChange={(e) => handleInputChange("fullName", e.target.value)}
-                        className={errors.fullName ? "border-red-500" : ""}
+                        id="username"
+                        placeholder="Enter your username"
+                        value={formData.username}
+                        onChange={(e) => handleInputChange("username", e.target.value)}
+                        className={errors.username ? "border-red-500" : ""}
+                        disabled={loading}
                       />
-                      {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+                      {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username}</p>}
                     </div>
 
-                    <div>
-                      <Label htmlFor="phoneNumber">Phone Number</Label>
-                      <Input
-                        id="phoneNumber"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={formData.phoneNumber}
-                        onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                        className={errors.phoneNumber ? "border-red-500" : ""}
-                      />
-                      {errors.phoneNumber && <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="first_name">First Name</Label>
+                        <Input
+                          id="first_name"
+                          placeholder="Enter your first name"
+                          value={formData.first_name}
+                          onChange={(e) => handleInputChange("first_name", e.target.value)}
+                          className={errors.first_name ? "border-red-500" : ""}
+                          disabled={loading}
+                        />
+                        {errors.first_name && <p className="text-red-500 text-sm mt-1">{errors.first_name}</p>}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="last_name">Last Name</Label>
+                        <Input
+                          id="last_name"
+                          placeholder="Enter your last name"
+                          value={formData.last_name}
+                          onChange={(e) => handleInputChange("last_name", e.target.value)}
+                          className={errors.last_name ? "border-red-500" : ""}
+                          disabled={loading}
+                        />
+                        {errors.last_name && <p className="text-red-500 text-sm mt-1">{errors.last_name}</p>}
+                      </div>
                     </div>
                   </>
                 )}
@@ -417,6 +433,7 @@ export default function AuthLayout() {
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
                     className={errors.email ? "border-red-500" : ""}
+                    disabled={loading}
                   />
                   {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
@@ -431,6 +448,7 @@ export default function AuthLayout() {
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
                       className={errors.password ? "border-red-500" : ""}
+                      disabled={loading}
                     />
                     <Button
                       type="button"
@@ -438,6 +456,7 @@ export default function AuthLayout() {
                       size="sm"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                      disabled={loading}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
@@ -448,16 +467,29 @@ export default function AuthLayout() {
                 {/* Confirm Password for Sign Up */}
                 {isSignUp && (
                   <div>
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className={errors.confirmPassword ? "border-red-500" : ""}
-                    />
-                    {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
+                    <Label htmlFor="password_confirm">Confirm Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password_confirm"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={formData.password_confirm}
+                        onChange={(e) => handleInputChange("password_confirm", e.target.value)}
+                        className={errors.password_confirm ? "border-red-500" : ""}
+                        disabled={loading}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                        disabled={loading}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    {errors.password_confirm && <p className="text-red-500 text-sm mt-1">{errors.password_confirm}</p>}
                   </div>
                 )}
 
@@ -465,7 +497,7 @@ export default function AuthLayout() {
                   type="submit"
                   disabled={loading}
                   className={`w-full ${
-                    userType === "student" ? "bg-yellow-500 hover:bg-yellow-600" : "bg-blue-600 hover:bg-blue-700"
+                    userType === "student" ? "bg-secondary hover:bg-secondary" : "bg-primary hover:bg-primary"
                   }`}
                 >
                   {loading ? (
@@ -486,8 +518,18 @@ export default function AuthLayout() {
                   {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
                   <Button
                     variant="link"
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className={`p-0 ${userType === "student" ? "text-yellow-600" : "text-blue-600"}`}
+                    onClick={() => {
+                      console.log(
+                        "🔄 AuthLayout: Switching form mode from",
+                        isSignUp ? "sign up" : "sign in",
+                        "to",
+                        isSignUp ? "sign in" : "sign up",
+                      )
+                      setIsSignUp(!isSignUp)
+                      setErrors({}) // Clear errors when switching modes
+                    }}
+                    className={`p-0 ${userType === "student" ? "text-secondary" : "text-primary"}`}
+                    disabled={loading}
                   >
                     {isSignUp ? "Sign In" : "Sign Up"}
                   </Button>
@@ -497,19 +539,19 @@ export default function AuthLayout() {
 
             {/* Right Side - Image */}
             <div
-              className={`relative overflow-hidden rounded-l-2xl ${
+              className={`relative overflow-hidden rounded-r-2xl ${
                 userType === "student"
-                  ? "bg-gradient-to-br from-yellow-400 to-orange-500"
-                  : "bg-gradient-to-br from-blue-500 to-blue-700"
+                  ? "bg-gradient-to-br from-secondary/90 to-secondary"
+                  : "bg-gradient-to-br from-primary/90 to-primary"
               }`}
             >
               <div className="absolute inset-0 flex items-center justify-center">
                 <Image
-                  src={StudentLoginImage}
+                  src={LoginImage}
                   alt="Learning Community"
                   width={350}
                   height={400}
-                  className="object-contain"
+                  className="object-contain max-w-[350px] max-h-[400px]"
                 />
               </div>
             </div>

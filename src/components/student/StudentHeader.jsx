@@ -30,5 +30,6 @@ export default function StudentHeader() {
         </div>
       </div>
     </header>
+
   )
 }

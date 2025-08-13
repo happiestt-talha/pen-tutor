@@ -1,120 +1,103 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import JoinCallButton from "@/components/shared/JoinCallButton"
+import { useState, useEffect, useCallback } from 'react'
+import axios from 'axios'
+import { useAuth } from '@/components/auth/AuthContext'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { AlertCircle, Calendar, Clock, User } from 'lucide-react'
+import { toast } from 'sonner'
+import Loader from '@/components/shared/Loader'
+import StartMeetingButton from './StartMeetingButton'
 
-const scheduledClasses = {
-  homeTuitions: [
-    {
-      id: "HT001",
-      studentId: "PTS100",
-      studentName: "Muhammad Ahmad",
-      classLevel: "O Level 1",
-      subject: "Chemistry",
-      daysAndTiming: "Monday 7:00 PM-8:00 PM, Tuesday 7:00 PM-8:00 PM, Friday 7:00 PM-8:00 PM",
-      location: "House No.15, Street No.5, DHA Phase 5, Lahore",
-      dateTime: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes from now
-    },
-  ],
-  onlineTuitions: [
-    {
-      id: "OT001",
-      studentId: "PTS100",
-      studentName: "Muhammad Ahmad",
-      classLevel: "O Level 1",
-      subject: "Chemistry",
-      daysAndTime: "Monday 7:00 PM-8:00 PM, Tuesday 7:00 PM-8:00 PM, Friday 7:00 PM-8:00 PM",
-      dateTime: new Date(Date.now() + 45 * 60 * 1000), // 45 minutes from now
-    },
-  ],
-  groupSessions: [
-    {
-      id: "GS001",
-      studentId: "PTS100",
-      studentName: "Muhammad Ahmad",
-      classLevel: "O Level 1",
-      subject: "Chemistry",
-      daysAndTime: "Monday 7:00 PM-8:00 PM, Tuesday 7:00 PM-8:00 PM, Friday 7:00 PM-8:00 PM",
-      dateTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-    },
-  ],
-}
+/**
+ * ScheduledClasses Component
+ * 
+ * Responsibilities:
+ * - Display tutor's scheduled classes for today and upcoming days
+ * - Allow tutors to start classes at the scheduled time (with 5-minute early window)
+ * - Create meeting rooms when classes are started
+ * - Handle class status updates and real-time state management
+ * - Provide visual feedback for different class states (upcoming, ready to start, active, completed)
+ */
+export default function ScheduledClasses() {
+  const [tuitions, setTuitions] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const { token } = useAuth()
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-function ClassTable({ title, classes, bgColor, textColor = "text-white" }) {
-  const handleJoinCall = (session) => {
-    console.log("Joining call for:", session)
+  const fetchAcceptedTuitions = useCallback(async () => {
+    if (!token) return
+    setIsLoading(true)
+    try {
+      // Assuming this endpoint exists for tutors to get their accepted tuitions
+      const response = await axios.get(`${API_BASE}/api/jobs/tutor/tuitions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      setTuitions(response.data || [])
+    } catch (error) {
+      toast.error("Failed to fetch scheduled classes.")
+      console.error("Error fetching scheduled classes:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [token, API_BASE])
+
+  useEffect(() => {
+    fetchAcceptedTuitions()
+  }, [fetchAcceptedTuitions])
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>My Scheduled Classes</CardTitle>
+          <CardDescription>Loading your upcoming classes...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Loader text="Fetching classes..." />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <div className="mb-6">
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">{title}</h3>
-      <div className={`${bgColor} ${textColor} rounded-lg p-4`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/30">
-                <th className="text-left py-2 px-2">#</th>
-                <th className="text-left py-2 px-2">Student ID</th>
-                <th className="text-left py-2 px-2">Class/Level</th>
-                <th className="text-left py-2 px-2">Subject</th>
-                <th className="text-left py-2 px-2">Days & Timing</th>
-                {title.includes("Home") && <th className="text-left py-2 px-2">Location</th>}
-                <th className="text-left py-2 px-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classes.map((classItem, index) => (
-                <tr key={classItem.id} className="border-b border-white/20">
-                  <td className="py-3 px-2">{index + 1}</td>
-                  <td className="py-3 px-2">
-                    <div>
-                      <div className="font-medium">{classItem.studentId}</div>
-                      <div className="text-xs opacity-80">({classItem.studentName})</div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2">{classItem.classLevel}</td>
-                  <td className="py-3 px-2">{classItem.subject}</td>
-                  <td className="py-3 px-2">{classItem.daysAndTiming || classItem.daysAndTime}</td>
-                  {title.includes("Home") && (
-                    <td className="py-3 px-2 max-w-xs">
-                      <div className="truncate">{classItem.location}</div>
-                    </td>
-                  )}
-                  <td className="py-3 px-2">
-                    <JoinCallButton session={classItem} onJoinCall={handleJoinCall} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function ScheduledClasses() {
-  return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-gray-800">My Scheduled Classes</CardTitle>
+        <CardTitle>My Scheduled Classes</CardTitle>
+        <CardDescription>Here are your upcoming and active classes.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <ClassTable
-          title="My Scheduled Home Tuitions"
-          classes={scheduledClasses.homeTuitions}
-          bgColor="bg-yellow-500"
-        />
-        <ClassTable
-          title="My Scheduled Online Tuitions"
-          classes={scheduledClasses.onlineTuitions}
-          bgColor="bg-cyan-500"
-        />
-        <ClassTable
-          title="My Scheduled Online Group Sessions"
-          classes={scheduledClasses.groupSessions}
-          bgColor="bg-red-500"
-        />
+      <CardContent>
+        {tuitions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center text-gray-500 py-8">
+            <AlertCircle className="h-10 w-10 mb-4" />
+            <p>You have no scheduled classes at the moment.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {tuitions.map((tuition) => (
+              <div key={tuition.id} className="p-4 border rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex-grow">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-semibold text-lg">{tuition.title}</h3>
+                    <Badge variant={tuition.status === 'active' ? 'default' : 'secondary'}>
+                      {tuition.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{tuition.description}</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+                    <span className="flex items-center gap-1.5"><User className="h-4 w-4" /> {tuition.student.name}</span>
+                    <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> {tuition.schedule.days.join(', ')}</span>
+                    <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> {tuition.schedule.time} ({tuition.schedule.duration} mins)</span>
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  {tuition.status === 'active' && <StartMeetingButton tuitionId={tuition.id} />}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -9,7 +9,7 @@ const courses = [
 
 export default function QuickOverview() {
   return (
-    <Card className="bg-gradient-to-r from-[#313D6A] to-[#313D6A] text-white">
+    <Card className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-xl font-bold">Quick Overview</CardTitle>
