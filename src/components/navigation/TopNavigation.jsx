@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Menu, X, User, LogOut } from "lucide-react"
-
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth/AuthContext"
 import {
@@ -42,8 +42,8 @@ export default function TopNavigation() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="Pen Tutor" className="h-8 w-auto" />
-            <span className="text-xl font-bold text-gray-900">Pen Tutor</span>
+            <Image src="/logo.png" alt="Pen Tutor" className="h-12 w-auto" width={100} height={100} />
+            {/* <span className="text-xl font-bold text-gray-900">Pen Tutor</span> */}
           </Link>
 
           {/* Desktop Navigation */}
@@ -71,7 +71,7 @@ export default function TopNavigation() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem asChild>
-                    <Link href={user?.role === "tutor" ? "/tutor/dashboard" : "/student/dashboard"}>Dashboard</Link>
+                    <Link href={user?.role === "teacher" ? "/tutor/dashboard" : "/student/dashboard"}>Dashboard</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/profile">Profile</Link>
@@ -122,7 +122,7 @@ export default function TopNavigation() {
                 {isAuthenticated ? (
                   <div className="space-y-2">
                     <Link
-                      href={user?.role === "tutor" ? "/tutor/dashboard" : "/student/dashboard"}
+                      href={user?.role === "teacher" ? "/tutor/dashboard" : "/student/dashboard"}
                       className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-md"
                       onClick={() => setIsMenuOpen(false)}
                     >

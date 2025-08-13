@@ -9,8 +9,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata = {
   title: "Pen Tutor",
   description: "Smart Learning Solutions",
-    generator: 'v0.dev'
+    generator: 'v0.dev',
+    favicon: '/favicon.png',
 };
+
+// add favicon to page
 
 export default function RootLayout({ children }) {
   return (

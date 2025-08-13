@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from "react"
 import axios from "axios"
+import { toast } from "sonner"
 
 const AuthContext = createContext({})
 
@@ -19,8 +20,9 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // Check if user is logged in on app start
+  //% Check if user is logged in on app start
   useEffect(() => {
+
     const token = localStorage.getItem("access_token")
     const userData = localStorage.getItem("user_data")
 
@@ -39,6 +41,7 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
+  //% Login function
   const login = async (credentials) => {
     try {
       const response = await axios.post(`${API_BASE}/api/auth/login/`, credentials)
@@ -83,6 +86,7 @@ export function AuthProvider({ children }) {
     }
   }
 
+  //% Register function
   const register = async (userData) => {
     try {
       const response = await axios.post(`${API_BASE}/api/auth/register/`, userData)
@@ -99,12 +103,33 @@ export function AuthProvider({ children }) {
     }
   }
 
+  //% Logout function
   const logout = () => {
-    localStorage.removeItem("access_token")
-    localStorage.removeItem("refresh_token")
-    localStorage.removeItem("user_data")
-    delete axios.defaults.headers.common["Authorization"]
-    setUser(null)
+    const token = localStorage.getItem("refresh_token")
+    console.log("Refresh token:", token)
+
+    try {
+      const response = axios.post(`${API_BASE}/api/auth/logout/`, {
+        refresh_token: token
+      })
+      console.log("Logout response:", response)
+
+
+      if (response.status === 200) {
+        localStorage.removeItem("access_token")
+        localStorage.removeItem("refresh_token")
+        localStorage.removeItem("user_data")
+        delete axios.defaults.headers.common["Authorization"]
+        setUser(null)
+        router.push("/")
+      }
+      else {
+        toast.error(response.data.message || "Logout failed")
+      }      
+    } catch (error) {
+      console.error("Logout failed:", error)
+      toast.error(error.response?.data?.message || error.response?.data?.detail || "Logout failed")
+    }
   }
 
   const value = {
